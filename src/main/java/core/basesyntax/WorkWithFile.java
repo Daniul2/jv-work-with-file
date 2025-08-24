@@ -23,16 +23,18 @@ public class WorkWithFile {
     }
 
     /**
-     * Orchestrates the process of reading data from one file, generating a
-     * statistic report, and writing it to another file.
+     * Reads data from a source file, generates a statistic report, writes it
+     * to a destination file, and returns the report as a String.
      *
      * @param fromFileName The path to the input CSV file.
      * @param toFileName   The path to the output report file.
+     * @return The generated report as a String.
      */
-    public void getStatistic(String fromFileName, String toFileName) {
+    public String getStatistic(String fromFileName, String toFileName) {
         Totals totals = readAndCalculateTotals(fromFileName);
         String report = createReport(totals);
         writeToFile(toFileName, report);
+        return report;
     }
 
     /**
@@ -49,9 +51,9 @@ public class WorkWithFile {
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(CSV_DELIMITER);
 
-                // Improvement 1: Add data validation
+                // Skip lines that are not in "key,value" format
                 if (parts.length != 2) {
-                    continue; // Skip lines that are not in "key,value" format
+                    continue;
                 }
 
                 String operationType = parts[0];
@@ -59,10 +61,10 @@ public class WorkWithFile {
                 try {
                     amount = Integer.parseInt(parts[1]);
                 } catch (NumberFormatException e) {
-                    continue; // Skip lines where the amount is not a valid number
+                    // Skip lines where the amount is not a valid number
+                    continue;
                 }
 
-                // Improvement 4: Other operation types are intentionally ignored
                 if (SUPPLY_OPERATION.equals(operationType)) {
                     totals.supply += amount;
                 } else if (BUY_OPERATION.equals(operationType)) {
@@ -76,7 +78,8 @@ public class WorkWithFile {
     }
 
     /**
-     * Creates a formatted report string from the calculated totals.
+     * Creates a formatted report string from the calculated totals without a
+     * trailing newline.
      *
      * @param totals The Totals object with supply and buy amounts.
      * @return A formatted multi-line string representing the report.
@@ -89,7 +92,6 @@ public class WorkWithFile {
                 .append(System.lineSeparator());
         reportBuilder.append(BUY_OPERATION).append(CSV_DELIMITER).append(totals.buy)
                 .append(System.lineSeparator());
-        // Improvement 2: No extra line separator at the end of the file
         reportBuilder.append(RESULT_OPERATION).append(CSV_DELIMITER).append(result);
 
         return reportBuilder.toString();
