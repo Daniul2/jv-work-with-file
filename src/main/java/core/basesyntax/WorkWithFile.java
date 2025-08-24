@@ -13,9 +13,14 @@ public class WorkWithFile {
     private static final String RESULT_OPERATION = "result";
     private static final String CSV_DELIMITER = ",";
 
-    // Constants for array indices to improve readability
-    private static final int SUPPLY_INDEX = 0;
-    private static final int BUY_INDEX = 1;
+    /**
+     * A simple data carrier class to hold the calculated totals.
+     * This is more readable and type-safe than using an array.
+     */
+    private static class Totals {
+        private int supply;
+        private int buy;
+    }
 
     /**
      * Orchestrates the process of reading data from one file, generating a
@@ -25,58 +30,67 @@ public class WorkWithFile {
      * @param toFileName   The path to the output report file.
      */
     public void getStatistic(String fromFileName, String toFileName) {
-        int[] totals = readAndCalculateTotals(fromFileName);
-        String report = createReport(totals[SUPPLY_INDEX], totals[BUY_INDEX]);
+        Totals totals = readAndCalculateTotals(fromFileName);
+        String report = createReport(totals);
         writeToFile(toFileName, report);
     }
 
     /**
-     * Reads the source file, parses the data, and calculates the total amount
-     * for "supply" and "buy" operations.
+     * Reads the source file, validates data, parses it, and calculates the total
+     * for "supply" and "buy" operations. Malformed lines are ignored.
      *
      * @param fromFileName The path to the source data file.
-     * @return An array of two integers: {supplyTotal, buyTotal}.
+     * @return A Totals object containing the sum for supply and buy.
      */
-    private int[] readAndCalculateTotals(String fromFileName) {
-        int supplyTotal = 0;
-        int buyTotal = 0;
-
+    private Totals readAndCalculateTotals(String fromFileName) {
+        Totals totals = new Totals();
         try (BufferedReader reader = new BufferedReader(new FileReader(fromFileName))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(CSV_DELIMITER);
-                String operationType = parts[0];
-                int amount = Integer.parseInt(parts[1]);
 
+                // Improvement 1: Add data validation
+                if (parts.length != 2) {
+                    continue; // Skip lines that are not in "key,value" format
+                }
+
+                String operationType = parts[0];
+                int amount;
+                try {
+                    amount = Integer.parseInt(parts[1]);
+                } catch (NumberFormatException e) {
+                    continue; // Skip lines where the amount is not a valid number
+                }
+
+                // Improvement 4: Other operation types are intentionally ignored
                 if (SUPPLY_OPERATION.equals(operationType)) {
-                    supplyTotal += amount;
+                    totals.supply += amount;
                 } else if (BUY_OPERATION.equals(operationType)) {
-                    buyTotal += amount;
+                    totals.buy += amount;
                 }
             }
         } catch (IOException e) {
             throw new RuntimeException("Can't read data from file: " + fromFileName, e);
         }
-        return new int[]{supplyTotal, buyTotal};
+        return totals;
     }
 
     /**
      * Creates a formatted report string from the calculated totals.
      *
-     * @param supplyTotal The total amount for "supply" operations.
-     * @param buyTotal    The total amount for "buy" operations.
+     * @param totals The Totals object with supply and buy amounts.
      * @return A formatted multi-line string representing the report.
      */
-    private String createReport(int supplyTotal, int buyTotal) {
-        int result = supplyTotal - buyTotal;
+    private String createReport(Totals totals) {
+        int result = totals.supply - totals.buy;
         StringBuilder reportBuilder = new StringBuilder();
 
-        reportBuilder.append(SUPPLY_OPERATION).append(CSV_DELIMITER).append(supplyTotal)
+        reportBuilder.append(SUPPLY_OPERATION).append(CSV_DELIMITER).append(totals.supply)
                 .append(System.lineSeparator());
-        reportBuilder.append(BUY_OPERATION).append(CSV_DELIMITER).append(buyTotal)
+        reportBuilder.append(BUY_OPERATION).append(CSV_DELIMITER).append(totals.buy)
                 .append(System.lineSeparator());
-        reportBuilder.append(RESULT_OPERATION).append(CSV_DELIMITER).append(result)
-                .append(System.lineSeparator());
+        // Improvement 2: No extra line separator at the end of the file
+        reportBuilder.append(RESULT_OPERATION).append(CSV_DELIMITER).append(result);
 
         return reportBuilder.toString();
     }
